@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/duclq/dev/internal/tools"
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/tools"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // memoryInstallCmd is the official one-line installer for codebase-memory-mcp.

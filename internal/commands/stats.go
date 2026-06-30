@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // Stats prints high-level statistics about the knowledge graph.

@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // Doctor reports the health of every dependency and the current project.

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/duclq/dev/internal/tools"
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/tools"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 const memoryBin = "codebase-memory-mcp"

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/duclq/dev/internal/commands"
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/commands"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // version is overridable at build time via -ldflags "-X main.version=...".

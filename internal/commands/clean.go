@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // Clean removes the generated graphify-out/ directory. It asks for

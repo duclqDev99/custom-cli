@@ -3,8 +3,8 @@ package commands
 import (
 	"os"
 
-	"github.com/duclq/dev/internal/tools"
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/tools"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // AI reports installed AI CLIs, configured API keys, and proxy overrides.

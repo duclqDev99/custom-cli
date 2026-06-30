@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/duclq/dev/internal/tools"
-	"github.com/duclq/dev/internal/ui"
+	"github.com/duclqDev99/custom-cli/internal/tools"
+	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
 // Sync runs the full refresh pipeline: graph → memory → git status.
