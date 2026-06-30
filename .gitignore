@@ -1,0 +1,4 @@
+/bin/
+/dist/
+graphify-out/
+*.test
