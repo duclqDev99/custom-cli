@@ -4,18 +4,28 @@ One CLI for an AI-assisted development workflow. Instead of remembering the
 flags of `graphify`, `codebase-memory-mcp`, `git`, Docker and friends, you run
 a handful of memorable verbs and `dev` orchestrates the rest.
 
+Commands come in two layers: **workflow** verbs that orchestrate every tool at
+once, and per-tool **namespaces**.
+
 ```
-dev init      check & set up your dev environment
-dev setup     configure graphify & codebase-memory-mcp
-dev sync      graphify update → memory reindex → git status
-dev graph     build the graph, or update it if it exists
-dev update    re-extract & update the graph
-dev memory    index the codebase memory (optional tool)
-dev doctor    show the health of every dependency
-dev ai        check AI CLIs, API keys & proxy
-dev stats     show knowledge-graph statistics
-dev clean     remove generated graphify-out/ artifacts
+# workflow (cross-cutting)
+dev init                 check & set up your dev environment
+dev setup [tool]         configure all tools, or just one
+dev sync                 refresh every tool for this project
+dev doctor               health of every tool & dependency
+dev ai                   check AI CLIs, API keys & proxy
+
+# tool namespaces
+dev graphify <verb>      graph | extract | update | stats | clean
+dev memory   <verb>      index | status
+
+# shortcuts (aliases to a namespace verb)
+dev graph    → dev graphify graph     dev update → dev graphify update
+dev stats    → dev graphify stats     dev clean  → dev graphify clean
+dev memory   → dev memory index       (default verb)
 ```
+
+Run `dev help`, or `dev <tool> --help` for a tool's verbs.
 
 ## Install
 
@@ -107,11 +117,28 @@ node, python) count toward a failing `dev doctor`.
 ## Layout
 
 ```
-cmd/dev/main.go          # command dispatch + usage
-internal/ui/             # colored output helpers
-internal/tools/          # binary lookup + process running
-internal/commands/       # one file per command
+cmd/dev/main.go              # registry + dispatch (workflow verbs, namespaces, aliases)
+internal/core/              # Module interface, orchestrators (doctor/setup/sync/init), ai, env
+internal/modules/graphify/  # graphify module — implements core.Module
+internal/modules/memory/    # codebase-memory-mcp module — implements core.Module
+internal/ui/                # colored output helpers
+internal/tools/             # binary lookup + process running
 ```
+
+### Adding a new tool
+
+`dev` is built around a small `core.Module` interface, so integrating another
+tool (Semgrep, Codex, n8n, ...) is a drop-in:
+
+1. Create `internal/modules/<tool>/<tool>.go` implementing `core.Module`
+   (`Name`, `Summary`, `Commands`, `Default`, `Doctor`, `Setup`, `Sync`).
+2. Register it in `cmd/dev/main.go`:
+   ```go
+   mods := []core.Module{graphify.New(), memory.New(), yourtool.New()}
+   ```
+
+That's it — `dev doctor`, `dev setup`, `dev sync`, and `dev <tool> ...` all pick
+it up automatically. No existing file needs to change.
 
 ## Development
 

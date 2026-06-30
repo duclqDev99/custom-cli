@@ -1,4 +1,4 @@
-package commands
+package core
 
 import (
 	"os"
@@ -7,24 +7,24 @@ import (
 	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
-// AI reports installed AI CLIs, configured API keys, and proxy overrides.
+// AI reports installed AI CLIs, configured API keys, and proxy overrides. It is
+// a cross-cutting utility, not tied to any single module.
 func AI(args []string) int {
 	ui.Header("AI CLIs")
-	checkDeps([]tools.Tool{
+	RenderChecks(ChecksFor([]tools.Tool{
 		{Name: "Claude Code", Bin: "claude", VersionArg: []string{"--version"}, Optional: true},
 		{Name: "Gemini CLI", Bin: "gemini", Optional: true},
 		{Name: "Codex CLI", Bin: "codex", Optional: true},
 		{Name: "OpenAI CLI", Bin: "openai", Optional: true},
-	})
+	}))
 
 	ui.Header("API keys")
-	keys := []struct{ name, env string }{
+	for _, k := range []struct{ name, env string }{
 		{"Anthropic", "ANTHROPIC_API_KEY"},
 		{"OpenAI", "OPENAI_API_KEY"},
 		{"Google Gemini", "GEMINI_API_KEY"},
 		{"Google", "GOOGLE_API_KEY"},
-	}
-	for _, k := range keys {
+	} {
 		if v := os.Getenv(k.env); v != "" {
 			ui.OK("%s %s", k.name, ui.Gray("("+mask(v)+")"))
 		} else {
@@ -33,12 +33,11 @@ func AI(args []string) int {
 	}
 
 	ui.Header("Proxy / base URLs")
-	overrides := []string{
+	found := false
+	for _, p := range []string{
 		"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
 		"ANTHROPIC_BASE_URL", "OPENAI_BASE_URL", "OPENAI_API_BASE",
-	}
-	found := false
-	for _, p := range overrides {
+	} {
 		if v := os.Getenv(p); v != "" {
 			ui.Info("%s = %s", p, v)
 			found = true
