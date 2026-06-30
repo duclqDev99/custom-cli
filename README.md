@@ -84,11 +84,32 @@ The two tools each take several manual steps; `dev setup` does them for you
    (writes the `CLAUDE.md` section + PreToolUse hook). Default platform is
    `claude`; override with `dev setup graphify --platform codex` (or `cursor`,
    `gemini`, ...).
-3. Detects the LLM backend graphify will use. graphify auto-selects from
-   whichever key is set — `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` /
-   `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` / `MOONSHOT_API_KEY` — or a self-hosted
-   endpoint (`OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`), or local `ollama`. Warns
-   if none is configured.
+3. Reports the LLM backend graphify will use (see below).
+
+### graphify's LLM backend — and why no API key is needed
+
+graphify only needs an LLM for **semantic extraction** (docs/images) and
+**naming communities**. Plain code is pure local AST and needs **no key at all**.
+
+When an LLM *is* needed, the backend is resolved in this order:
+
+1. **An API key**, auto-detected by graphify: `ANTHROPIC_API_KEY` /
+   `OPENAI_API_KEY` / `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) /
+   `DEEPSEEK_API_KEY` / `MOONSHOT_API_KEY`, or a self-hosted endpoint
+   (`OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`), or `OLLAMA_BASE_URL`.
+2. **`claude-cli`** — the locally-installed, already-authenticated `claude` CLI
+   (Claude Code). This bills your **Pro/Max subscription**, not pay-as-you-go API
+   credit, so **no API key is required**.
+
+graphify never auto-selects `claude-cli` for a bare CLI run, so `dev` injects
+`--backend claude-cli` for you when no API key is set but `claude` is on `PATH`.
+That's why `dev graph` produces named communities on this machine with zero keys.
+A `--backend` you pass yourself always wins:
+
+```sh
+dev graphify extract --backend ollama     # override
+dev graph                                  # auto: claude-cli if no key, else your key
+```
 
 ### `dev setup memory`
 

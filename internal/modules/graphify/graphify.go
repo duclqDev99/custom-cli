@@ -28,8 +28,9 @@ func (Module) Default() string { return "graph" }
 func (Module) Commands() []core.Command {
 	return []core.Command{
 		{Name: "graph", Desc: "extract first time, update afterwards", Run: cmdGraph},
-		{Name: "extract", Desc: "full re-extraction", Run: func([]string) int { return run("extract") }},
-		{Name: "update", Desc: "incremental update", Run: func([]string) int { return run("update") }},
+		{Name: "extract", Desc: "full re-extraction", Run: func(a []string) int { return run("extract", withBackend(a)...) }},
+		{Name: "update", Desc: "incremental update", Run: func(a []string) int { return run("update", a...) }},
+		{Name: "label", Desc: "name communities via the LLM backend", Run: func(a []string) int { return run("label", withBackend(a)...) }},
 		{Name: "stats", Desc: "node / edge / community counts", Run: cmdStats},
 		{Name: "clean", Desc: "remove graphify-out/", Run: cmdClean},
 	}
@@ -52,7 +53,7 @@ func (Module) Sync() int {
 		return run("update")
 	}
 	ui.Warn("no graph yet — extracting first")
-	return run("extract")
+	return run("extract", withBackend(nil)...)
 }
 
 // Setup installs the graphify skill+hook for a platform and reports the backend.
@@ -80,21 +81,22 @@ func (Module) Setup(args []string) int {
 		ui.OK("skill + hook installed (%s)", platform)
 	}
 
-	if c := backendCheck(); c.OK {
-		ui.OK("LLM backend ready: %s", c.Detail)
+	if _, detail, ok := chosenBackend(); ok {
+		ui.OK("LLM backend ready: %s", detail)
 	} else {
-		ui.Warn("no LLM backend — %s", c.Detail)
+		ui.Warn("no LLM backend — %s", detail)
 	}
 	return 0
 }
 
-// run executes `graphify <sub> .` and reports the outcome.
-func run(sub string) int {
+// run executes `graphify <sub> . [extra...]` and reports the outcome.
+func run(sub string, extra ...string) int {
 	if !tools.Exists(bin) {
 		ui.Error("graphify is not installed")
 		return 1
 	}
-	if err := tools.Run(bin, sub, "."); err != nil {
+	cmdArgs := append([]string{sub, "."}, extra...)
+	if err := tools.Run(bin, cmdArgs...); err != nil {
 		ui.Error("graphify %s failed: %v", sub, err)
 		return 1
 	}
@@ -103,43 +105,79 @@ func run(sub string) int {
 }
 
 // cmdGraph extracts a fresh graph or updates the existing one.
-func cmdGraph([]string) int {
+func cmdGraph(args []string) int {
 	if !tools.Exists(bin) {
 		ui.Error("graphify is not installed")
 		return 1
 	}
 	if core.FileExists(core.GraphJSON()) {
 		ui.Step("graph exists → updating")
-		return run("update")
+		return run("update", args...)
 	}
 	ui.Step("no graph yet → extracting")
-	return run("extract")
+	return run("extract", withBackend(args)...)
 }
 
-// backendCheck reports which LLM backend graphify will auto-detect.
-func backendCheck() core.Check {
-	for _, b := range []struct{ name, env string }{
-		{"claude", "ANTHROPIC_API_KEY"},
-		{"openai", "OPENAI_API_KEY"},
-		{"gemini", "GEMINI_API_KEY"},
-		{"deepseek", "DEEPSEEK_API_KEY"},
-		{"kimi", "MOONSHOT_API_KEY"},
-	} {
-		if os.Getenv(b.env) != "" {
-			return core.Check{Name: "LLM backend", OK: true, Detail: b.name + " (" + b.env + ")"}
+// withBackend appends an explicit `--backend claude-cli` when no API-key backend
+// is configured but the `claude` CLI is available — so community naming works
+// via the Claude Code subscription with no API key. A user-supplied --backend
+// always wins. claude-cli is the only backend graphify won't auto-detect, so
+// it's the only one we ever inject.
+func withBackend(args []string) []string {
+	for _, a := range args {
+		if a == "--backend" || strings.HasPrefix(a, "--backend=") {
+			return args // respect explicit override
 		}
 	}
-	if os.Getenv("OPENAI_BASE_URL") != "" || os.Getenv("ANTHROPIC_BASE_URL") != "" {
-		return core.Check{Name: "LLM backend", OK: true, Detail: "self-hosted (BASE_URL set)"}
+	extra := backendArgs()
+	if len(extra) > 0 {
+		ui.Info("backend: %s", ui.Gray("claude-cli (Claude Code subscription, no API key)"))
 	}
-	if tools.Exists("ollama") {
-		return core.Check{Name: "LLM backend", OK: true, Detail: "ollama (local)"}
+	return append(append([]string{}, args...), extra...)
+}
+
+// backendArgs returns the --backend flag to inject, or nil when graphify can
+// resolve a backend itself (API key set) or none is available.
+func backendArgs() []string {
+	if name, _, ok := chosenBackend(); ok && name == "claude-cli" {
+		return []string{"--backend", "claude-cli"}
 	}
-	return core.Check{
-		Name:     "LLM backend",
-		Optional: true,
-		Detail:   "set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY",
+	return nil
+}
+
+// chosenBackend mirrors graphify's resolution: an API key wins (graphify
+// auto-detects it), else a self-hosted/ollama endpoint, else the local `claude`
+// CLI (claude-cli — subscription, no key). Returns ok=false when only code-only
+// AST extraction is possible.
+func chosenBackend() (name, detail string, ok bool) {
+	for _, b := range []struct{ name, env string }{
+		{"gemini", "GEMINI_API_KEY"},
+		{"gemini", "GOOGLE_API_KEY"},
+		{"kimi", "MOONSHOT_API_KEY"},
+		{"claude", "ANTHROPIC_API_KEY"},
+		{"openai", "OPENAI_API_KEY"},
+		{"deepseek", "DEEPSEEK_API_KEY"},
+	} {
+		if os.Getenv(b.env) != "" {
+			return b.name, b.name + " (" + b.env + ")", true
+		}
 	}
+	if os.Getenv("ANTHROPIC_BASE_URL") != "" || os.Getenv("OPENAI_BASE_URL") != "" {
+		return "self-hosted", "self-hosted (BASE_URL set)", true
+	}
+	if os.Getenv("OLLAMA_BASE_URL") != "" {
+		return "ollama", "ollama (OLLAMA_BASE_URL)", true
+	}
+	if tools.Exists("claude") {
+		return "claude-cli", "claude-cli (Claude Code subscription, no API key)", true
+	}
+	return "", "code-only AST works; set an API key or install Claude Code for semantic naming", false
+}
+
+// backendCheck reports the LLM backend graphify will use, for `dev doctor`.
+func backendCheck() core.Check {
+	_, detail, ok := chosenBackend()
+	return core.Check{Name: "LLM backend", OK: ok, Optional: true, Detail: detail}
 }
 
 // cmdStats prints high-level statistics about the knowledge graph.
