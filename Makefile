@@ -3,14 +3,17 @@ PREFIX ?= $(HOME)/.local
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
-.PHONY: build install uninstall test vet fmt clean run
+.PHONY: build install uninstall test vet fmt clean run release check-go
 
-build: ## Build the dev binary into ./bin
+check-go: ## Fail with per-OS Go install commands when Go is missing
+	@sh ./install.sh --check
+
+build: check-go ## Build the dev binary into ./bin
 	@mkdir -p bin
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/dev
 	@echo "built bin/$(BINARY) ($(VERSION))"
 
-install: ## Build and install to $(PREFIX)/bin
+install: check-go ## Build and install to $(PREFIX)/bin
 	@mkdir -p $(PREFIX)/bin
 	go build -ldflags "$(LDFLAGS)" -o $(PREFIX)/bin/$(BINARY) ./cmd/dev
 	@echo "installed $(PREFIX)/bin/$(BINARY)"
@@ -19,16 +22,16 @@ install: ## Build and install to $(PREFIX)/bin
 uninstall: ## Remove the installed binary
 	rm -f $(PREFIX)/bin/$(BINARY)
 
-test: ## Run tests
+test: check-go ## Run tests
 	go test ./...
 
-vet: ## Run go vet
+vet: check-go ## Run go vet
 	go vet ./...
 
-fmt: ## Format the code
+fmt: check-go ## Format the code
 	gofmt -w .
 
-release: ## Cross-compile binaries for common OS/arch into ./dist
+release: check-go ## Cross-compile binaries for common OS/arch into ./dist
 	@mkdir -p dist
 	GOOS=darwin  GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-darwin-arm64  ./cmd/dev
 	GOOS=darwin  GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY)-darwin-amd64  ./cmd/dev

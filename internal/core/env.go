@@ -3,6 +3,7 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/duclqDev99/custom-cli/internal/tools"
 	"github.com/duclqDev99/custom-cli/internal/ui"
@@ -30,6 +31,7 @@ func InGitRepo() bool {
 // own — these are not modules, just expectations of the environment.
 func EnvChecks() []Check {
 	return ChecksFor([]tools.Tool{
+		{Name: "Go", Bin: "go", VersionArg: []string{"version"}, Optional: true, Hint: goInstallHint()},
 		{Name: "Git", Bin: "git", VersionArg: []string{"--version"}},
 		{Name: "Node.js", Bin: "node", VersionArg: []string{"--version"}},
 		{Name: "Python", Bin: "python3", VersionArg: []string{"--version"}},
@@ -38,6 +40,21 @@ func EnvChecks() []Check {
 		{Name: "Redis", Bin: "redis-cli", VersionArg: []string{"--version"}, Optional: true, Hint: "brew install redis"},
 		{Name: "PostgreSQL", Bin: "psql", VersionArg: []string{"--version"}, Optional: true, Hint: "brew install postgresql"},
 	})
+}
+
+// goInstallHint suggests a Go install command for the current platform; the
+// full per-OS list lives in install.sh (`./install.sh --check`).
+func goInstallHint() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "brew install go"
+	case "linux":
+		return "apt-get install golang-go / dnf install golang / pacman -S go"
+	case "windows":
+		return "winget install GoLang.Go"
+	default:
+		return "https://go.dev/dl/"
+	}
 }
 
 // ChecksFor converts tool definitions into health checks. Modules use this to

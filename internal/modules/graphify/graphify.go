@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/duclqDev99/custom-cli/internal/core"
@@ -13,7 +15,18 @@ import (
 	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
-const bin = "graphify"
+const (
+	bin = "graphify"
+	// pkg is the PyPI distribution name: the package is `graphifyy` (double y),
+	// the installed CLI is `graphify`. https://github.com/safishamsi/graphify
+	pkg  = "graphifyy"
+	repo = "https://github.com/safishamsi/graphify"
+)
+
+// binPath is the resolved graphify executable, set by ensure(). It stays the
+// bare name for a normal PATH install and becomes an absolute path when the
+// binary lives somewhere PATH doesn't cover yet (fresh uv/pipx install).
+var binPath = bin
 
 // Module implements core.Module for graphify.
 type Module struct{}
@@ -38,15 +51,15 @@ func (Module) Commands() []core.Command {
 
 func (Module) Doctor() []core.Check {
 	checks := core.ChecksFor([]tools.Tool{
-		{Name: "graphify", Bin: bin, Hint: "install the graphify CLI"},
+		{Name: "graphify", Bin: bin, Hint: "auto-installs on first use, or: uv tool install " + pkg},
 	})
 	return append(checks, backendCheck())
 }
 
 // Sync updates the graph (extracting first if none exists yet).
 func (Module) Sync() int {
-	if !tools.Exists(bin) {
-		ui.Warn("graphify not installed — skipping")
+	if !ensure() {
+		ui.Warn("graphify unavailable — skipping")
 		return 0
 	}
 	if core.FileExists(core.GraphJSON()) {
@@ -60,9 +73,7 @@ func (Module) Sync() int {
 func (Module) Setup(args []string) int {
 	ui.Header("Setup · graphify")
 
-	if !tools.Exists(bin) {
-		ui.Fail("graphify not installed")
-		ui.Info("install the graphify CLI first, then re-run %s", ui.Bold("dev setup graphify"))
+	if !ensure() {
 		return 1
 	}
 	ui.OK("graphify present")
@@ -71,8 +82,8 @@ func (Module) Setup(args []string) int {
 	ui.Step("installing graphify skill + hook for %q", platform)
 	// `graphify <platform> install` writes the skill, CLAUDE.md section and
 	// PreToolUse hook. Fall back to the generic `install --platform` form.
-	if err := tools.Run(bin, platform, "install"); err != nil {
-		if err2 := tools.Run(bin, "install", "--platform", platform); err2 != nil {
+	if err := tools.Run(binPath, platform, "install"); err != nil {
+		if err2 := tools.Run(binPath, "install", "--platform", platform); err2 != nil {
 			ui.Warn("could not auto-install skill — run %s manually", ui.Bold("graphify "+platform+" install"))
 		} else {
 			ui.OK("skill installed (%s)", platform)
@@ -89,14 +100,65 @@ func (Module) Setup(args []string) int {
 	return 0
 }
 
+// resolve finds the graphify executable: PATH first, then ~/.local/bin —
+// where uv tool and pipx place scripts that a not-yet-reloaded shell PATH
+// may not cover.
+func resolve() (string, bool) {
+	if p, err := exec.LookPath(bin); err == nil {
+		return p, true
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		p := filepath.Join(home, ".local", "bin", bin)
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p, true
+		}
+	}
+	return "", false
+}
+
+// ensure resolves graphify, auto-installing it on first use when missing.
+// Install order mirrors the upstream README: uv tool → pipx → pip.
+func ensure() bool {
+	if p, ok := resolve(); ok {
+		binPath = p
+		return true
+	}
+	ui.Step("graphify not installed — installing %s from PyPI", pkg)
+	installers := [][]string{
+		{"uv", "tool", "install", pkg},
+		{"pipx", "install", pkg},
+		{"python3", "-m", "pip", "install", pkg},
+		{"python3", "-m", "pip", "install", "--break-system-packages", pkg},
+	}
+	for _, c := range installers {
+		if !tools.Exists(c[0]) {
+			continue
+		}
+		ui.Info("trying: %s", ui.Gray(strings.Join(c, " ")))
+		if err := tools.Run(c[0], c[1:]...); err != nil {
+			continue
+		}
+		if p, ok := resolve(); ok {
+			binPath = p
+			ui.OK("graphify installed (%s)", p)
+			if _, err := exec.LookPath(bin); err != nil {
+				ui.Warn("%s is not on PATH — add it to run graphify directly", filepath.Dir(p))
+			}
+			return true
+		}
+	}
+	ui.Fail("could not install graphify automatically")
+	ui.Info("install manually: %s (see %s)", ui.Bold("uv tool install "+pkg), repo)
+	return false
+}
+
 // run executes `graphify <sub> . [extra...]` and reports the outcome.
 func run(sub string, extra ...string) int {
-	if !tools.Exists(bin) {
-		ui.Error("graphify is not installed")
+	if !ensure() {
 		return 1
 	}
 	cmdArgs := append([]string{sub, "."}, extra...)
-	if err := tools.Run(bin, cmdArgs...); err != nil {
+	if err := tools.Run(binPath, cmdArgs...); err != nil {
 		ui.Error("graphify %s failed: %v", sub, err)
 		return 1
 	}
@@ -106,8 +168,7 @@ func run(sub string, extra ...string) int {
 
 // cmdGraph extracts a fresh graph or updates the existing one.
 func cmdGraph(args []string) int {
-	if !tools.Exists(bin) {
-		ui.Error("graphify is not installed")
+	if !ensure() {
 		return 1
 	}
 	if core.FileExists(core.GraphJSON()) {

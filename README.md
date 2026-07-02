@@ -18,31 +18,39 @@ dev ai                   check AI CLIs, API keys & proxy
 # tool namespaces
 dev graphify <verb>      graph | extract | update | stats | clean
 dev memory   <verb>      index | status
+dev uipro    <verb>      init | update | versions
 
 # shortcuts (aliases to a namespace verb)
 dev graph    → dev graphify graph     dev update → dev graphify update
 dev stats    → dev graphify stats     dev clean  → dev graphify clean
-dev memory   → dev memory index       (default verb)
+dev ui       → dev uipro init         dev memory → dev memory index
 ```
 
 Run `dev help`, or `dev <tool> --help` for a tool's verbs.
 
 ## Install
 
-Requires Go 1.22+.
+Requires [Go 1.22+](https://go.dev/dl/). The installer (and every `make`
+target) checks this first — when Go is missing you get an error plus the
+install command for your OS (macOS, Debian/Ubuntu, Fedora, Arch, Alpine,
+openSUSE, Windows).
 
 ```sh
-# from a clone, install to ~/.local/bin
+# from a clone — checks Go, builds, installs to ~/.local/bin
+./install.sh
+
+# the same via make
 make install
 
-# or straight from the module path
-go install github.com/duclq/dev/cmd/dev@latest
+# or straight from the module path (needs Go already installed)
+go install github.com/duclqDev99/custom-cli/cmd/dev@latest
 ```
 
-Make sure the install dir is on your `PATH`:
+Make sure the install dir is on your `PATH` — `install.sh` warns and prints
+the exact line to add when it is not:
 
 ```sh
-# ~/.local/bin (make install) or ~/go/bin (go install)
+# ~/.local/bin (install.sh / make install) or ~/go/bin (go install)
 export PATH="$HOME/.local/bin:$HOME/go/bin:$PATH"
 ```
 
@@ -62,7 +70,7 @@ brew install dev
 | Command       | What it does                                                                 |
 | ------------- | ---------------------------------------------------------------------------- |
 | `dev init`    | Verifies graphify, git, node, python, docker, claude, etc. and reports project state. |
-| `dev setup`   | Configures both tools (`dev setup graphify` / `dev setup memory` for one).    |
+| `dev setup`   | Configures all tools (`dev setup graphify` / `memory` / `uipro` for one).     |
 | `dev doctor`  | Full health check of core deps + services (redis, postgres) + project.       |
 | `dev graph`   | Runs `graphify extract .` the first time, `graphify update .` afterwards.     |
 | `dev update`  | Always runs `graphify update .`.                                             |
@@ -71,15 +79,19 @@ brew install dev
 | `dev ai`      | Lists detected AI CLIs (Claude, Gemini, Codex, OpenAI), API keys, proxies.    |
 | `dev stats`   | Node / edge / community counts from `graphify-out/graph.json`.                |
 | `dev clean`   | Removes `graphify-out/` (`-f`/`--force` to skip the prompt).                  |
+| `dev ui`      | Installs the UI/UX Pro Max skill for your assistant (`uipro init --ai claude`). |
 
 ## Setup: what `dev setup` automates
 
-The two tools each take several manual steps; `dev setup` does them for you
+Each tool takes several manual steps; `dev setup` does them for you
 (idempotent — safe to re-run).
 
 ### `dev setup graphify`
 
-1. Checks that the `graphify` binary is present.
+1. Checks that the `graphify` binary is present. If it isn't, it is installed
+   automatically from PyPI (package [`graphifyy`](https://github.com/safishamsi/graphify),
+   CLI `graphify`) — trying `uv tool install`, then `pipx`, then `pip`. The same
+   auto-install runs on first use of any graph command (`dev graph`, `dev sync`, ...).
 2. Installs the skill + hook for your agent: `graphify <platform> install`
    (writes the `CLAUDE.md` section + PreToolUse hook). Default platform is
    `claude`; override with `dev setup graphify --platform codex` (or `cursor`,
@@ -123,10 +135,21 @@ dev graph                                  # auto: claude-cli if no key, else yo
 No API keys, Redis, or Postgres are needed — codebase-memory-mcp is a single
 static binary with embedded SQLite that runs 100% locally.
 
+### `dev setup uipro`
+
+1. Checks that the `uipro` binary is present. If it isn't, it is installed
+   automatically from npm (package
+   [`uipro-cli`](https://www.npmjs.com/package/uipro-cli), CLI `uipro`).
+2. Installs the [UI/UX Pro Max](https://www.npmjs.com/package/uipro-cli) design
+   skill for your assistant: `uipro init --ai claude`. Default platform is
+   `claude`; override with `dev setup uipro --ai cursor` (or `windsurf`,
+   `copilot`, ...). Extra flags like `--force` / `--offline` pass through.
+
 ```sh
-dev setup            # both tools
+dev setup            # all tools
 dev setup graphify   # just graphify
 dev setup memory -y  # install memory without the prompt
+dev setup uipro      # UI/UX skill for Claude Code
 ```
 
 ### Graceful by design
@@ -142,6 +165,7 @@ cmd/dev/main.go              # registry + dispatch (workflow verbs, namespaces, 
 internal/core/              # Module interface, orchestrators (doctor/setup/sync/init), ai, env
 internal/modules/graphify/  # graphify module — implements core.Module
 internal/modules/memory/    # codebase-memory-mcp module — implements core.Module
+internal/modules/uipro/     # uipro-cli (UI/UX skill) module — implements core.Module
 internal/ui/                # colored output helpers
 internal/tools/             # binary lookup + process running
 ```

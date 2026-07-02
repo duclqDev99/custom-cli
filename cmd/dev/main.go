@@ -13,6 +13,7 @@ import (
 	"github.com/duclqDev99/custom-cli/internal/core"
 	"github.com/duclqDev99/custom-cli/internal/modules/graphify"
 	"github.com/duclqDev99/custom-cli/internal/modules/memory"
+	"github.com/duclqDev99/custom-cli/internal/modules/uipro"
 	"github.com/duclqDev99/custom-cli/internal/ui"
 )
 
@@ -23,16 +24,17 @@ var version = "0.1.0"
 type alias struct{ module, verb string }
 
 // aliasOrder keeps shortcut help output stable.
-var aliasOrder = []string{"graph", "update", "stats", "clean"}
+var aliasOrder = []string{"graph", "update", "stats", "clean", "ui"}
 var aliases = map[string]alias{
 	"graph":  {"graphify", "graph"},
 	"update": {"graphify", "update"},
 	"stats":  {"graphify", "stats"},
 	"clean":  {"graphify", "clean"},
+	"ui":     {"uipro", "init"},
 }
 
 func main() {
-	mods := []core.Module{graphify.New(), memory.New()}
+	mods := []core.Module{graphify.New(), memory.New(), uipro.New()}
 
 	args := os.Args[1:]
 	if len(args) == 0 {
