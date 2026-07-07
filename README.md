@@ -19,11 +19,13 @@ dev ai                   check AI CLIs, API keys & proxy
 dev graphify <verb>      graph | extract | update | stats | clean
 dev memory   <verb>      index | status
 dev uipro    <verb>      init | update | versions
+dev claude   <verb>      statusline
 
 # shortcuts (aliases to a namespace verb)
-dev graph    → dev graphify graph     dev update → dev graphify update
-dev stats    → dev graphify stats     dev clean  → dev graphify clean
-dev ui       → dev uipro init         dev memory → dev memory index
+dev graph      → dev graphify graph     dev update → dev graphify update
+dev stats      → dev graphify stats     dev clean  → dev graphify clean
+dev ui         → dev uipro init         dev memory → dev memory index
+dev statusline → dev claude statusline
 ```
 
 Run `dev help`, or `dev <tool> --help` for a tool's verbs.
@@ -70,7 +72,7 @@ brew install dev
 | Command       | What it does                                                                 |
 | ------------- | ---------------------------------------------------------------------------- |
 | `dev init`    | Verifies graphify, git, node, python, docker, claude, etc. and reports project state. |
-| `dev setup`   | Configures all tools (`dev setup graphify` / `memory` / `uipro` for one).     |
+| `dev setup`   | Configures all tools (`dev setup graphify` / `memory` / `uipro` / `claude` for one). |
 | `dev doctor`  | Full health check of core deps + services (redis, postgres) + project.       |
 | `dev graph`   | Runs `graphify extract .` the first time, `graphify update .` afterwards.     |
 | `dev update`  | Always runs `graphify update .`.                                             |
@@ -80,6 +82,7 @@ brew install dev
 | `dev stats`   | Node / edge / community counts from `graphify-out/graph.json`.                |
 | `dev clean`   | Removes `graphify-out/` (`-f`/`--force` to skip the prompt).                  |
 | `dev ui`      | Installs the UI/UX Pro Max skill for your assistant (`uipro init --ai claude`). |
+| `dev statusline` | Installs the Claude Code status line — a per-prompt readout of model · context usage · token count · session cost (`--remove` to undo). |
 
 ## Setup: what `dev setup` automates
 
@@ -145,11 +148,27 @@ static binary with embedded SQLite that runs 100% locally.
    `claude`; override with `dev setup uipro --ai cursor` (or `windsurf`,
    `copilot`, ...). Extra flags like `--force` / `--offline` pass through.
 
+### `dev setup claude` (status line)
+
+1. Writes a small Node status-line script (shipped inside the `dev` binary) to
+   `~/.claude/statusline.js`. Any existing script is backed up to `*.bak` first.
+2. Points `~/.claude/settings.json` at it via an absolute `node` path, merging a
+   `statusLine` block while preserving every other setting (the file is backed
+   up to `settings.json.bak` before it's rewritten).
+
+The result is a per-prompt readout of **model · context usage · token count ·
+session cost** — so you can see how much context and money a chat is using. Open
+a new Claude Code prompt after installing. `dev claude statusline --remove`
+undoes both steps. Set `CLAUDE_CONTEXT_LIMIT` to override the assumed context
+window (defaults to 1M for `[1m]` models, else 200k).
+
 ```sh
-dev setup            # all tools
-dev setup graphify   # just graphify
-dev setup memory -y  # install memory without the prompt
-dev setup uipro      # UI/UX skill for Claude Code
+dev setup                    # all tools
+dev setup graphify           # just graphify
+dev setup memory -y          # install memory without the prompt
+dev setup uipro              # UI/UX skill for Claude Code
+dev statusline               # install the Claude Code status line
+dev claude statusline --remove   # uninstall it
 ```
 
 ### Graceful by design
