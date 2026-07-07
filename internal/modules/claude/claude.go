@@ -34,12 +34,12 @@ type Module struct{}
 func New() core.Module { return Module{} }
 
 func (Module) Name() string    { return "claude" }
-func (Module) Summary() string { return "Claude Code status line (context · cost)" }
+func (Module) Summary() string { return "Claude Code status line (context · cost · quota)" }
 func (Module) Default() string { return "statusline" }
 
 func (Module) Commands() []core.Command {
 	return []core.Command{
-		{Name: "statusline", Desc: "install the status line (context · token · cost); --remove to undo", Run: cmdStatusline},
+		{Name: "statusline", Desc: "install the status line (context · token · cost · 5h/7d quota); --remove to undo", Run: cmdStatusline},
 	}
 }
 

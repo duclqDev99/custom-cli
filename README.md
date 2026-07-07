@@ -82,7 +82,7 @@ brew install dev
 | `dev stats`   | Node / edge / community counts from `graphify-out/graph.json`.                |
 | `dev clean`   | Removes `graphify-out/` (`-f`/`--force` to skip the prompt).                  |
 | `dev ui`      | Installs the UI/UX Pro Max skill for your assistant (`uipro init --ai claude`). |
-| `dev statusline` | Installs the Claude Code status line — a per-prompt readout of model · context usage · token count · session cost (`--remove` to undo). |
+| `dev statusline` | Installs the Claude Code status line — a per-prompt readout of model · context usage · token count · session cost · real 5h/7d subscription quota (`--remove` to undo). |
 
 ## Setup: what `dev setup` automates
 
@@ -157,10 +157,33 @@ static binary with embedded SQLite that runs 100% locally.
    up to `settings.json.bak` before it's rewritten).
 
 The result is a per-prompt readout of **model · context usage · token count ·
-session cost** — so you can see how much context and money a chat is using. Open
-a new Claude Code prompt after installing. `dev claude statusline --remove`
-undoes both steps. Set `CLAUDE_CONTEXT_LIMIT` to override the assumed context
-window (defaults to 1M for `[1m]` models, else 200k).
+session cost · subscription quota** — so you can see how much context and money a
+chat is using, plus how close you are to your plan limits:
+
+```
+⧉ Opus 4.8 (1M context) │ ██░░░░░░ 178k/1M (18%) │ Σ 19M tok │ $7.71 │ 5h █░░░░ 22% │ 7d █░░░░ 20% │ +531 -39
+```
+
+The `5h` (current-session) and `7d` (weekly) gauges are the **real** subscription
+limits Claude Code reports — the same numbers as the `/usage` command. Claude Code
+passes them to the status line on stdin as `rate_limits` (requires Claude Code
+≥ 2.x and a subscription; they appear after the first API response of a session).
+
+When `rate_limits` isn't available (e.g. before the first response, or API-key
+users), the line falls back to a **local estimate** from `~/.claude/stats-cache.json`:
+`W` = rolling 7-day and `M` = rolling 30-day token totals. That cache refreshes
+roughly daily, so the fallback can lag a day or two.
+
+Open a new Claude Code prompt after installing. `dev claude statusline --remove`
+undoes both steps.
+
+Environment overrides (all optional):
+
+| Variable | Effect |
+| --- | --- |
+| `CLAUDE_CONTEXT_LIMIT` | Context-window size for the context `%` gauge (default: 1M for `[1m]` models, else 200k). |
+| `CLAUDE_WEEKLY_TOKEN_BUDGET` | Denominator for the fallback `W` gauge, e.g. `20M` / `500k`. Unset → shows the raw 7-day token total. |
+| `CLAUDE_MONTHLY_TOKEN_BUDGET` | Denominator for the fallback `M` gauge, e.g. `80M`. Unset → shows the raw 30-day token total. |
 
 ```sh
 dev setup                    # all tools
